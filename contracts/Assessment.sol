@@ -1,60 +1,45 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-//import "hardhat/console.sol";
-
-contract Assessment {
+contract MysteryBoxSubscription {
     address payable public owner;
-    uint256 public balance;
 
-    event Deposit(uint256 amount);
-    event Withdraw(uint256 amount);
+    enum SubscriptionSize { Small, Medium, Large, ExtraLarge }
+    struct Subscriber {
+        string name;
+        SubscriptionSize subscriptionSize;
+    }
 
-    constructor(uint initBalance) payable {
+    mapping(address => Subscriber) public subscribers;
+    event Subscribed(address subscriber, string name, SubscriptionSize subscriptionSize);
+    
+    constructor() {
         owner = payable(msg.sender);
-        balance = initBalance;
     }
 
-    function getBalance() public view returns(uint256){
-        return balance;
-    }
-
-    function deposit(uint256 _amount) public payable {
-        uint _previousBalance = balance;
-
-        // make sure this is the owner
-        require(msg.sender == owner, "You are not the owner of this account");
-
-        // perform transaction
-        balance += _amount;
-
-        // assert transaction completed successfully
-        assert(balance == _previousBalance + _amount);
-
-        // emit the event
-        emit Deposit(_amount);
-    }
-
-    // custom error
-    error InsufficientBalance(uint256 balance, uint256 withdrawAmount);
-
-    function withdraw(uint256 _withdrawAmount) public {
-        require(msg.sender == owner, "You are not the owner of this account");
-        uint _previousBalance = balance;
-        if (balance < _withdrawAmount) {
-            revert InsufficientBalance({
-                balance: balance,
-                withdrawAmount: _withdrawAmount
-            });
+    function subscribe(string memory _name, SubscriptionSize _subscriptionSize) public payable {
+        require(bytes(_name).length > 0, "Name is required");
+        
+        uint256 subscriptionCost;
+        if (_subscriptionSize == SubscriptionSize.Small) {
+            subscriptionCost = 0.01 ether;
+        } else if (_subscriptionSize == SubscriptionSize.Medium) {
+            subscriptionCost = 0.03 ether;
+        } else if (_subscriptionSize == SubscriptionSize.Large) {
+            subscriptionCost = 0.05 ether;
+        } else if (_subscriptionSize == SubscriptionSize.ExtraLarge) {
+            subscriptionCost = 1 ether;
         }
+        
+        require(msg.value >= subscriptionCost, "Insufficient payment");
 
-        // withdraw the given amount
-        balance -= _withdrawAmount;
+        subscribers[msg.sender] = Subscriber(_name, _subscriptionSize);
 
-        // assert the balance is correct
-        assert(balance == (_previousBalance - _withdrawAmount));
+        emit Subscribed(msg.sender, _name, _subscriptionSize);
+    }
 
-        // emit the event
-        emit Withdraw(_withdrawAmount);
+    function getSubscription(address _subscriber) public view returns (string memory name, SubscriptionSize subscriptionSize) {
+        Subscriber storage subscriber = subscribers[_subscriber];
+        return (subscriber.name, subscriber.subscriptionSize);
     }
 }
